@@ -136,7 +136,7 @@ namespace Microsoft.Xna.Framework.Graphics
 		 * src/Graphics/Effect/StockEffects/, the HLSL and FXB folders!
 		 * -flibit
 		 */
-		private static readonly byte[] spriteEffectCode = Resources.SpriteEffect;
+		private static readonly byte[] spriteEffectCode = SpriteEffectCode.Code;
 		private static readonly short[] indexData = GenerateIndexArray();
 		private static readonly TextureComparer TextureCompare = new TextureComparer();
 		private static readonly BackToFrontComparer BackToFrontCompare = new BackToFrontComparer();
@@ -150,9 +150,9 @@ namespace Microsoft.Xna.Framework.Graphics
 		{
 			if (graphicsDevice == null)
 			{
-				throw new ArgumentNullException("graphicsDevice");
+				throw new ArgumentNullException("graphicsDevice", "The GraphicsDevice must not be null when creating new resources.");
 			}
-			GraphicsDevice = graphicsDevice;
+			base.graphicsDevice = graphicsDevice;
 
 			vertexInfo = new VertexPositionColorTexture4[MAX_SPRITES];
 			textureInfo = new Texture2D[MAX_SPRITES];

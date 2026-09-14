@@ -121,6 +121,19 @@ namespace Microsoft.Xna.Framework.Graphics
 			}
 			set
 			{
+				if (value == null)
+				{
+					throw new ArgumentNullException("value", "This method does not accept null for this parameter.");
+				}
+				if (value.IsDisposed)
+				{
+					throw new ObjectDisposedException(typeof(BlendState).Name);
+				}
+				if (IsDisposed)
+				{
+					throw new ObjectDisposedException(GetType().Name);
+				}
+				value.graphicsDevice = this;
 				nextBlend = value;
 			}
 		}
@@ -133,14 +146,47 @@ namespace Microsoft.Xna.Framework.Graphics
 			}
 			set
 			{
+				if (value == null)
+				{
+					throw new ArgumentNullException("value", "This method does not accept null for this parameter.");
+				}
+				if (value.IsDisposed)
+				{
+					throw new ObjectDisposedException(typeof(DepthStencilState).Name);
+				}
+				if (IsDisposed)
+				{
+					throw new ObjectDisposedException(GetType().Name);
+				}
+				value.graphicsDevice = this;
 				nextDepthStencil = value;
 			}
 		}
 
+		private RasterizerState cachedRasterizerState;
 		public RasterizerState RasterizerState
 		{
-			get;
-			set;
+			get
+			{
+				return cachedRasterizerState;
+			}
+			set
+			{
+				if (value == null)
+				{
+					throw new ArgumentNullException("value", "This method does not accept null for this parameter.");
+				}
+				if (value.IsDisposed)
+				{
+					throw new ObjectDisposedException(typeof(RasterizerState).Name);
+				}
+				if (IsDisposed)
+				{
+					throw new ObjectDisposedException(GetType().Name);
+				}
+				value.graphicsDevice = this;
+				cachedRasterizerState = value;
+			}
 		}
 
 		/* We have to store this internally because we flip the Rectangle for
@@ -152,10 +198,22 @@ namespace Microsoft.Xna.Framework.Graphics
 		{
 			get
 			{
+				if (IsDisposed)
+				{
+					throw new ObjectDisposedException(GetType().Name);
+				}
 				return INTERNAL_scissorRectangle;
 			}
 			set
 			{
+				if (IsDisposed)
+				{
+					throw new ObjectDisposedException(GetType().Name);
+				}
+				if (value.X < 0 || value.Y < 0 || value.Width < 0 || value.Height < 0)
+				{
+					throw new ArgumentException("The scissor rectangle is invalid. The scissor rectangle cannot be larger than or outside of the current render target bounds.", "value");
+				}
 				INTERNAL_scissorRectangle = value;
 				FNA3D.FNA3D_SetScissorRect(
 					GLDevice,
@@ -173,10 +231,27 @@ namespace Microsoft.Xna.Framework.Graphics
 		{
 			get
 			{
+				if (IsDisposed)
+				{
+					throw new ObjectDisposedException(GetType().Name);
+				}
 				return INTERNAL_viewport;
 			}
 			set
 			{
+				if (IsDisposed)
+				{
+					throw new ObjectDisposedException(GetType().Name);
+				}
+				if (
+					value.X < 0 || value.Y < 0 || value.Width <= 0 || value.Height <= 0 ||
+					value.MinDepth < 0f || value.MinDepth > 1f ||
+					value.MaxDepth < 0f || value.MaxDepth > 1f ||
+					value.MaxDepth < value.MinDepth
+				)
+				{
+					throw new ArgumentException("The viewport is invalid. The viewport cannot be larger than or outside of the current render target bounds. The MinDepth and MaxDepth must be between 0 and 1.", "value");
+				}
 				INTERNAL_viewport = value;
 				FNA3D.FNA3D_SetViewport(
 					GLDevice,
@@ -195,6 +270,10 @@ namespace Microsoft.Xna.Framework.Graphics
 			}
 			set
 			{
+				if (IsDisposed)
+				{
+					throw new ObjectDisposedException(GetType().Name);
+				}
 				/* FIXME: Does this affect the value found in
 				 * BlendState?
 				 * -flibit
@@ -211,6 +290,10 @@ namespace Microsoft.Xna.Framework.Graphics
 			}
 			set
 			{
+				if (IsDisposed)
+				{
+					throw new ObjectDisposedException(GetType().Name);
+				}
 				/* FIXME: Does this affect the value found in
 				 * BlendState?
 				 * -flibit
@@ -227,6 +310,10 @@ namespace Microsoft.Xna.Framework.Graphics
 			}
 			set
 			{
+				if (IsDisposed)
+				{
+					throw new ObjectDisposedException(GetType().Name);
+				}
 				/* FIXME: Does this affect the value found in
 				 * DepthStencilState?
 				 * -flibit
@@ -360,7 +447,6 @@ namespace Microsoft.Xna.Framework.Graphics
 		public event EventHandler<ResourceDestroyedEventArgs> ResourceDestroyed;
 		public event EventHandler<EventArgs> Disposing;
 
-		// TODO: Hook this up to GraphicsResource
 		internal void OnResourceCreated(object resource)
 		{
 			if (ResourceCreated != null)
@@ -398,7 +484,11 @@ namespace Microsoft.Xna.Framework.Graphics
 		) {
 			if (presentationParameters == null)
 			{
-				throw new ArgumentNullException("presentationParameters");
+				throw new ArgumentNullException("presentationParameters", "This method does not accept null for this parameter.");
+			}
+			if (adapter == null)
+			{
+				throw new ArgumentNullException("adapter", "This method does not accept null for this parameter.");
 			}
 
 			// Set the properties from the constructor parameters.
@@ -453,6 +543,7 @@ namespace Microsoft.Xna.Framework.Graphics
 				modifiedSamplers
 			);
 			SamplerStates = new SamplerStateCollection(
+				this,
 				maxTextures,
 				modifiedSamplers
 			);
@@ -461,6 +552,7 @@ namespace Microsoft.Xna.Framework.Graphics
 				modifiedVertexSamplers
 			);
 			VertexSamplerStates = new SamplerStateCollection(
+				this,
 				maxVertexTextures,
 				modifiedVertexSamplers
 			);
@@ -707,9 +799,17 @@ namespace Microsoft.Xna.Framework.Graphics
 			PresentationParameters presentationParameters,
 			GraphicsAdapter graphicsAdapter
 		) {
+			if (IsDisposed)
+			{
+				throw new ObjectDisposedException(GetType().Name);
+			}
 			if (presentationParameters == null)
 			{
-				throw new ArgumentNullException("presentationParameters");
+				throw new ArgumentNullException("presentationParameters", "This method does not accept null for this parameter.");
+			}
+			if (graphicsAdapter == null)
+			{
+				throw new ArgumentNullException("graphicsAdapter", "This method does not accept null for this parameter.");
 			}
 			PresentationParameters = presentationParameters;
 			Adapter = graphicsAdapter;
@@ -863,6 +963,14 @@ namespace Microsoft.Xna.Framework.Graphics
 			int startIndex,
 			int elementCount
 		) where T : struct {
+			if (IsDisposed)
+			{
+				throw new ObjectDisposedException(GetType().Name);
+			}
+			if (data == null)
+			{
+				throw new ArgumentNullException("data", "This method does not accept null for this parameter.");
+			}
 			int x, y, w, h;
 			if (rect == null)
 			{
@@ -933,6 +1041,10 @@ namespace Microsoft.Xna.Framework.Graphics
 
 		public void SetRenderTargets(params RenderTargetBinding[] renderTargets)
 		{
+			if (IsDisposed)
+			{
+				throw new ObjectDisposedException(GetType().Name);
+			}
 			// Flush scissor state - using a rect outside of the viewport has been observed
 			// causing errors in Metal on iOS (via SDLGPU), for example when scissoring was just
 			// disabled and we're changing viewport size.
@@ -1000,6 +1112,22 @@ namespace Microsoft.Xna.Framework.Graphics
 			}
 			else
 			{
+				for (int i = 0; i < renderTargets.Length; i++)
+				{
+					Texture renderTarget = renderTargets[i].RenderTarget;
+					if (renderTarget == null)
+					{
+						throw new ArgumentException("This method does not accept null for this parameter.");
+					}
+					if (renderTarget.texture == IntPtr.Zero)
+					{
+						throw new ObjectDisposedException(renderTarget.GetType().Name);
+					}
+					if (renderTarget.GraphicsDevice != this)
+					{
+						throw new InvalidOperationException("Resources can only be used on the GraphicsDevice that they were created on. This resource was not created on this GraphicsDevice.");
+					}
+				}
 				IRenderTarget target = renderTargets[0].RenderTarget as IRenderTarget;
 				unsafe
 				{
@@ -1237,6 +1365,18 @@ namespace Microsoft.Xna.Framework.Graphics
 			int startIndex,
 			int primitiveCount
 		) {
+			if (IsDisposed)
+			{
+				throw new ObjectDisposedException(GetType().Name);
+			}
+			if (numVertices <= 0)
+			{
+				throw new ArgumentOutOfRangeException("numVertices", "When drawing indexed primitives, the number of vertices passed in must be greater than zero.");
+			}
+			if (primitiveCount <= 0)
+			{
+				throw new ArgumentOutOfRangeException("primitiveCount", "When drawing, at least one primitive must be drawn.");
+			}
 			ApplyState();
 
 			PrepareVertexBindingArray(baseVertex);
@@ -1263,6 +1403,22 @@ namespace Microsoft.Xna.Framework.Graphics
 			int primitiveCount,
 			int instanceCount
 		) {
+			if (IsDisposed)
+			{
+				throw new ObjectDisposedException(GetType().Name);
+			}
+			if (numVertices <= 0)
+			{
+				throw new ArgumentOutOfRangeException("numVertices", "When drawing indexed primitives, the number of vertices passed in must be greater than zero.");
+			}
+			if (primitiveCount <= 0)
+			{
+				throw new ArgumentOutOfRangeException("primitiveCount", "When drawing, at least one primitive must be drawn.");
+			}
+			if (instanceCount <= 0)
+			{
+				throw new ArgumentOutOfRangeException("instanceCount", "When drawing, at least one primitive must be drawn.");
+			}
 			// If this device doesn't have the support, just explode now before it's too late.
 			if (FNA3D.FNA3D_SupportsHardwareInstancing(GLDevice) == 0)
 			{
@@ -1296,6 +1452,14 @@ namespace Microsoft.Xna.Framework.Graphics
 			int vertexStart,
 			int primitiveCount
 		) {
+			if (IsDisposed)
+			{
+				throw new ObjectDisposedException(GetType().Name);
+			}
+			if (primitiveCount <= 0)
+			{
+				throw new ArgumentOutOfRangeException("primitiveCount", "When drawing, at least one primitive must be drawn.");
+			}
 			ApplyState();
 
 			PrepareVertexBindingArray(0);
@@ -1534,6 +1698,26 @@ namespace Microsoft.Xna.Framework.Graphics
 			int primitiveCount,
 			VertexDeclaration vertexDeclaration
 		) where T : struct {
+			if (IsDisposed)
+			{
+				throw new ObjectDisposedException(GetType().Name);
+			}
+			if (vertexData == null)
+			{
+				throw new ArgumentNullException("vertexData", "This method does not accept null for this parameter.");
+			}
+			if (vertexDeclaration == null)
+			{
+				throw new ArgumentNullException("vertexDeclaration", "This method does not accept null for this parameter.");
+			}
+			if (primitiveCount <= 0)
+			{
+				throw new ArgumentOutOfRangeException("primitiveCount", "When drawing, at least one primitive must be drawn.");
+			}
+			if (vertexOffset < 0)
+			{
+				throw new ArgumentOutOfRangeException("vertexOffset", "The offset must be within the valid range for this resource.");
+			}
 			ApplyState();
 
 			// Pin the buffers.
