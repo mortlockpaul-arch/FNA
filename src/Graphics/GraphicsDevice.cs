@@ -71,6 +71,10 @@ namespace Microsoft.Xna.Framework.Graphics
 		{
 			get
 			{
+				if (IsDisposed)
+				{
+					throw new ObjectDisposedException(GetType().Name);
+				}
 				if (PresentationParameters.IsFullScreen)
 				{
 					int w, h;
@@ -326,10 +330,28 @@ namespace Microsoft.Xna.Framework.Graphics
 
 		#region Public Buffer Object Properties
 
+		private IndexBuffer _currentIB;
 		public IndexBuffer Indices
 		{
-			get;
-			set;
+			get
+			{
+				return _currentIB;
+			}
+			set
+			{
+				if (IsDisposed)
+				{
+					throw new ObjectDisposedException(GetType().Name);
+				}
+				if (value != null)
+				{
+					if (value.buffer == IntPtr.Zero)
+					{
+						throw new ObjectDisposedException(value.GetType().Name);
+					}
+				}
+				_currentIB = value;
+			}
 		}
 
 		#endregion
@@ -365,6 +387,13 @@ namespace Microsoft.Xna.Framework.Graphics
 		#region Internal State Changes Pointer
 
 		internal IntPtr effectStateChangesPtr;
+
+		#endregion
+
+		#region Internal SpriteBatch Variables
+
+		internal ushort spriteBeginCount = 0;
+		internal bool spriteImmediateBegin = false;
 
 		#endregion
 
@@ -455,7 +484,6 @@ namespace Microsoft.Xna.Framework.Graphics
 			}
 		}
 
-		// TODO: Hook this up to GraphicsResource
 		internal void OnResourceDestroyed(string name, object tag)
 		{
 			if (ResourceDestroyed != null)
@@ -490,20 +518,23 @@ namespace Microsoft.Xna.Framework.Graphics
 			{
 				throw new ArgumentNullException("adapter", "This method does not accept null for this parameter.");
 			}
+			if (graphicsProfile != GraphicsProfile.Reach && graphicsProfile != GraphicsProfile.HiDef)
+			{
+				throw new ArgumentOutOfRangeException("graphicsProfile");
+			}
 
 			// Set the properties from the constructor parameters.
 			Adapter = adapter;
-			PresentationParameters = presentationParameters;
 			GraphicsProfile = graphicsProfile;
-			PresentationParameters.MultiSampleCount = MathHelper.ClosestMSAAPower(
-				PresentationParameters.MultiSampleCount
+			presentationParameters.MultiSampleCount = MathHelper.ClosestMSAAPower(
+				presentationParameters.MultiSampleCount
 			);
 
 			// Set up the FNA3D Device
 			try
 			{
 				GLDevice = FNA3D.FNA3D_CreateDevice(
-					ref PresentationParameters.parameters,
+					ref presentationParameters.parameters,
 #if DEBUG
 					1
 #else
@@ -517,6 +548,7 @@ namespace Microsoft.Xna.Framework.Graphics
 					e.Message
 				);
 			}
+			PresentationParameters = presentationParameters.Clone();
 
 			// The mouse needs to know this for faux-backbuffer mouse scaling.
 			Input.Mouse.INTERNAL_BackBufferWidth = PresentationParameters.BackBufferWidth;
@@ -910,6 +942,10 @@ namespace Microsoft.Xna.Framework.Graphics
 
 		public void Clear(ClearOptions options, Vector4 color, float depth, int stencil)
 		{
+			if (IsDisposed)
+			{
+				throw new ObjectDisposedException(GetType().Name);
+			}
 			DepthFormat dsFormat;
 			if (renderTargetCount == 0)
 			{
@@ -1863,7 +1899,7 @@ namespace Microsoft.Xna.Framework.Graphics
 		) {
 			int len = numVertices * vertexDeclaration.VertexStride;
 			int offset = vertexOffset * vertexDeclaration.VertexStride;
-			vertexDeclaration.GraphicsDevice = this;
+			vertexDeclaration.graphicsDevice = this;
 
 			if (len > userVertexBufferSize)
 			{

@@ -97,10 +97,7 @@ namespace Microsoft.Xna.Framework.Graphics
 			BufferUsage = bufferUsage;
 
 			// Make sure the graphics device is assigned in the vertex declaration.
-			if (vertexDeclaration.GraphicsDevice != graphicsDevice)
-			{
-				vertexDeclaration.GraphicsDevice = graphicsDevice;
-			}
+			vertexDeclaration.graphicsDevice = graphicsDevice;
 
 			buffer = FNA3D.FNA3D_GenVertexBuffer(
 				GraphicsDevice.GLDevice,
@@ -166,6 +163,10 @@ namespace Microsoft.Xna.Framework.Graphics
 			int elementCount,
 			int vertexStride
 		) where T : struct {
+			if (buffer == IntPtr.Zero)
+			{
+				throw new ObjectDisposedException(GetType().Name);
+			}
 			if (data == null)
 			{
 				throw new ArgumentNullException("data");
@@ -299,6 +300,10 @@ namespace Microsoft.Xna.Framework.Graphics
 			int elementCount,
 			int vertexStride
 		) where T : struct {
+			if (buffer == IntPtr.Zero)
+			{
+				throw new ObjectDisposedException(GetType().Name);
+			}
 			if (data == null)
 			{
 				throw new ArgumentNullException("data");
