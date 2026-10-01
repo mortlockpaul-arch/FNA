@@ -204,6 +204,10 @@ namespace Microsoft.Xna.Framework.Storage
 			devicePlayer = player;
 		}
 
+		public StorageDevice()
+		{
+		}
+
 		#endregion
 
 		#region Public OpenContainer Methods
@@ -349,6 +353,23 @@ namespace Microsoft.Xna.Framework.Storage
 		public void DeleteContainer(string titleName)
 		{
 			throw new NotImplementedException();
+		}
+
+		public static StorageDevice OpenDevice()
+		{
+			return new StorageDevice();
+		}
+
+		public StorageContainer OpenContainer(string fileName)
+		{
+			string path = System.IO.Path.Combine(
+				Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+				"SavedGames",
+				fileName);
+
+			Directory.CreateDirectory(path);
+
+			return new StorageContainer(fileName, path);
 		}
 
 		#endregion

@@ -28,11 +28,7 @@ namespace Microsoft.Xna.Framework.Storage
 		/// <summary>
 		/// The title's (i.e. "game's") filename.
 		/// </summary>
-		public string DisplayName
-		{
-			get;
-			private set;
-		}
+		public string DisplayName { get; private set; }
 
 		/// <summary>
 		/// A bool value indicating whether the instance has been disposed.
@@ -55,9 +51,12 @@ namespace Microsoft.Xna.Framework.Storage
 		#endregion
 
 		#region Internal Variables
-
+		public string DirectoryName { get; }
 		private readonly string storagePath;
+		private string fileName;
+		private string path;
 
+		public string Path => storagePath;
 		#endregion
 
 		#region Events
@@ -87,7 +86,8 @@ namespace Microsoft.Xna.Framework.Storage
 			string name,
 			string rootPath,
 			PlayerIndex? playerIndex
-		) {
+		)
+		{
 			if (string.IsNullOrEmpty(name))
 			{
 				throw new ArgumentNullException("A title name has to be provided in parameter name.");
@@ -103,10 +103,10 @@ namespace Microsoft.Xna.Framework.Storage
 			 * game save folder.
 			 * -flibit
 			 */
-			storagePath = Path.Combine(
-				rootPath,		// Title folder (EXE name)...
-				name,			// Container folder...
-				playerIndex.HasValue ?	// Player folder...
+			storagePath = System.IO.Path.Combine(
+			rootPath,       // Title folder (EXE name)...
+				name,           // Container folder...
+				playerIndex.HasValue ?  // Player folder...
 					("Player" + ((int) playerIndex.Value + 1).ToString()) :
 					"AllPlayers"
 			);
@@ -116,6 +116,12 @@ namespace Microsoft.Xna.Framework.Storage
 			{
 				Directory.CreateDirectory(storagePath);
 			}
+		}
+
+		public StorageContainer(string fileName, string path)
+		{
+			this.fileName = fileName;
+			this.path = path;
 		}
 
 		#endregion
@@ -153,7 +159,7 @@ namespace Microsoft.Xna.Framework.Storage
 			}
 
 			// Directory name is relative, so combine with our path.
-			string dirPath = Path.Combine(storagePath, directory);
+			string dirPath = System.IO.Path.Combine(storagePath, directory);
 
 			// Now let's try to create it.
 			if (!Directory.Exists(dirPath))
@@ -175,7 +181,7 @@ namespace Microsoft.Xna.Framework.Storage
 			}
 
 			// File name is relative, so combine with our path.
-			string filePath = Path.Combine(storagePath, file);
+			string filePath = System.IO.Path.Combine(storagePath, file);
 
 			// Return a new file with read/write access.
 			return File.Create(filePath);
@@ -197,7 +203,7 @@ namespace Microsoft.Xna.Framework.Storage
 			}
 
 			// Directory name is relative, so combine with our path.
-			string dirPath = Path.Combine(storagePath, directory);
+			string dirPath = System.IO.Path.Combine(storagePath, directory);
 
 			// Now let's try to delete it.
 			Directory.Delete(dirPath);
@@ -215,7 +221,7 @@ namespace Microsoft.Xna.Framework.Storage
 			}
 
 			// Relative, so combine with our path.
-			string filePath = Path.Combine(storagePath, file);
+			string filePath = System.IO.Path.Combine(storagePath, file);
 
 			// Now let's try to delete it.
 			File.Delete(filePath);
@@ -238,9 +244,9 @@ namespace Microsoft.Xna.Framework.Storage
 			}
 
 			// Directory name is relative, so combine with our path.
-			string dirPath = Path.Combine(storagePath, directory);
+			string dirPath = System.IO.Path.Combine(storagePath, directory);
 
-			return Directory.Exists(dirPath);
+			return System.IO.Directory.Exists(dirPath);
 		}
 
 		/// <summary>
@@ -256,10 +262,10 @@ namespace Microsoft.Xna.Framework.Storage
 			}
 
 			// File name is relative, so combine with our path.
-			string filePath = Path.Combine(storagePath, file);
+			string filePath = System.IO.Path.Combine(storagePath, file);
 
 			// Return a new file with read/write access.
-			return File.Exists(filePath);
+			return System.IO.File.Exists(filePath);
 		}
 
 		#endregion
@@ -355,7 +361,8 @@ namespace Microsoft.Xna.Framework.Storage
 		public Stream OpenFile(
 			string file,
 			FileMode fileMode
-		) {
+		)
+		{
 			return OpenFile(
 				file,
 				fileMode,
@@ -379,7 +386,8 @@ namespace Microsoft.Xna.Framework.Storage
 			string file,
 			FileMode fileMode,
 			FileAccess fileAccess
-		) {
+		)
+		{
 			return OpenFile(
 				file,
 				fileMode,
@@ -406,16 +414,17 @@ namespace Microsoft.Xna.Framework.Storage
 			FileMode fileMode,
 			FileAccess fileAccess,
 			FileShare fileShare
-		) {
+		)
+		{
 			if (string.IsNullOrEmpty(file))
 			{
 				throw new ArgumentNullException("Parameter file must contain a value.");
 			}
 
 			// Filename is relative, so combine with our path.
-			string filePath = Path.Combine(storagePath, file);
+			string filePath = System.IO.Path.Combine(storagePath, file);
 
-			return File.Open(filePath, fileMode, fileAccess, fileShare);
+			return System.IO.File.Open(filePath, fileMode, fileAccess, fileShare);
 		}
 
 		#endregion

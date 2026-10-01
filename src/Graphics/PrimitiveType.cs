@@ -37,6 +37,7 @@ namespace Microsoft.Xna.Framework.Graphics
 		/// <summary>
 		/// Treats each vertex as a single point. Vertex n defines point n. N points are drawn.
 		/// </summary>
-		PointListEXT
+		PointListEXT,
+		PointList
 	}
 }

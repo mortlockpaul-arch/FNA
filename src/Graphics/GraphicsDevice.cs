@@ -2028,6 +2028,8 @@ namespace Microsoft.Xna.Framework.Graphics
 					return primitiveCount + 1;
 				case PrimitiveType.PointListEXT:
 					return primitiveCount;
+				case PrimitiveType.PointList:
+					return primitiveCount;
 				default:
 					throw new InvalidOperationException(
 						"Unrecognized primitive type!"
