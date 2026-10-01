@@ -65,7 +65,7 @@ namespace Microsoft.Xna.Framework.Graphics
 		/// <summary>
 		/// A null vertex buffer binding for unused vertex buffer slots.
 		/// </summary>
-		internal static readonly VertexBufferBinding None = new VertexBufferBinding(null);
+		internal static readonly VertexBufferBinding None = new VertexBufferBinding();
 
 		#endregion
 
