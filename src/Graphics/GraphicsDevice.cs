@@ -41,6 +41,10 @@ namespace Microsoft.Xna.Framework.Graphics
 		{
 			get
 			{
+				if (IsDisposed)
+				{
+					throw new ObjectDisposedException(GetType().Name);
+				}
 				return GraphicsDeviceStatus.Normal;
 			}
 		}
@@ -249,8 +253,7 @@ namespace Microsoft.Xna.Framework.Graphics
 				}
 				if (
 					value.X < 0 || value.Y < 0 || value.Width <= 0 || value.Height <= 0 ||
-					value.MinDepth < 0f || value.MinDepth > 1f ||
-					value.MaxDepth < 0f || value.MaxDepth > 1f ||
+					value.MinDepth < 0f || value.MaxDepth > 1f ||
 					value.MaxDepth < value.MinDepth
 				)
 				{
@@ -522,10 +525,33 @@ namespace Microsoft.Xna.Framework.Graphics
 			{
 				throw new ArgumentOutOfRangeException("graphicsProfile");
 			}
+			if (presentationParameters.DeviceWindowHandle == IntPtr.Zero)
+			{
+				throw new ArgumentException("PresentationParameters.DeviceWindowHandle must not be null.");
+			}
+			DisplayOrientation orientation = presentationParameters.DisplayOrientation;
+			if (orientation != DisplayOrientation.Default && orientation != DisplayOrientation.LandscapeLeft && orientation != DisplayOrientation.LandscapeRight && orientation != DisplayOrientation.Portrait)
+			{
+				throw new ArgumentException("The specified DisplayOrientation is invalid.");
+			}
 
 			// Set the properties from the constructor parameters.
 			Adapter = adapter;
 			GraphicsProfile = graphicsProfile;
+			if (presentationParameters.BackBufferWidth <= 0 || presentationParameters.BackBufferHeight <= 0)
+			{
+				if (presentationParameters.IsFullScreen)
+				{
+					presentationParameters.BackBufferWidth = adapter.CurrentDisplayMode.Width;
+					presentationParameters.BackBufferHeight = adapter.CurrentDisplayMode.Height;
+				}
+				else
+				{
+					Rectangle windowBound = FNAPlatform.GetWindowBounds(presentationParameters.DeviceWindowHandle);
+					presentationParameters.BackBufferWidth = windowBound.Width;
+					presentationParameters.BackBufferHeight = windowBound.Height;
+				}
+			}
 			presentationParameters.MultiSampleCount = MathHelper.ClosestMSAAPower(
 				presentationParameters.MultiSampleCount
 			);
@@ -742,9 +768,13 @@ namespace Microsoft.Xna.Framework.Graphics
 
 		public void Present()
 		{
+			if (IsDisposed)
+			{
+				throw new ObjectDisposedException(GetType().Name);
+			}
 			if (renderTargetCount > 0)
 			{
-				throw new InvalidOperationException("Cannot present while render targets are bound");
+				throw new InvalidOperationException("Cannot call Present when a render target is active.");
 			}
 			FNA3D.FNA3D_SwapBuffers(
 				GLDevice,
@@ -759,9 +789,13 @@ namespace Microsoft.Xna.Framework.Graphics
 			Rectangle? destinationRectangle,
 			IntPtr overrideWindowHandle
 		) {
+			if (IsDisposed)
+			{
+				throw new ObjectDisposedException(GetType().Name);
+			}
 			if (renderTargetCount > 0)
 			{
-				throw new InvalidOperationException("Cannot present while render targets are bound");
+				throw new InvalidOperationException("Cannot call Present when a render target is active.");
 			}
 			if (overrideWindowHandle == IntPtr.Zero)
 			{
@@ -843,15 +877,15 @@ namespace Microsoft.Xna.Framework.Graphics
 			{
 				throw new ArgumentNullException("graphicsAdapter", "This method does not accept null for this parameter.");
 			}
-			PresentationParameters = presentationParameters;
 			Adapter = graphicsAdapter;
 
 			// Verify MSAA before we really start...
-			PresentationParameters.MultiSampleCount = FNA3D.FNA3D_GetMaxMultiSampleCount(
+			presentationParameters.MultiSampleCount = FNA3D.FNA3D_GetMaxMultiSampleCount(
 				GLDevice,
-				PresentationParameters.BackBufferFormat,
-				MathHelper.ClosestMSAAPower(PresentationParameters.MultiSampleCount)
+				presentationParameters.BackBufferFormat,
+				MathHelper.ClosestMSAAPower(presentationParameters.MultiSampleCount)
 			);
+			PresentationParameters = presentationParameters.Clone();
 
 			// We're about to reset, let the application know.
 			if (DeviceResetting != null)
@@ -894,7 +928,7 @@ namespace Microsoft.Xna.Framework.Graphics
 			Input.Touch.TouchPanel.DisplayHeight = PresentationParameters.BackBufferHeight;
 
 			// Now, update the viewport
-			Viewport = new Viewport(
+			INTERNAL_viewport = new Viewport(
 				0,
 				0,
 				PresentationParameters.BackBufferWidth,
@@ -982,7 +1016,7 @@ namespace Microsoft.Xna.Framework.Graphics
 
 		public void GetBackBufferData<T>(T[] data) where T : struct
 		{
-			GetBackBufferData(null, data, 0, data.Length);
+			GetBackBufferData(null, data, 0, data == null ? 0 : data.Length);
 		}
 
 		public void GetBackBufferData<T>(
@@ -1003,10 +1037,11 @@ namespace Microsoft.Xna.Framework.Graphics
 			{
 				throw new ObjectDisposedException(GetType().Name);
 			}
-			if (data == null)
+			if (data == null || data.Length == 0)
 			{
 				throw new ArgumentNullException("data", "This method does not accept null for this parameter.");
 			}
+			GraphicsResource.ValidateCopyParameters(data.Length, startIndex, elementCount);
 			int x, y, w, h;
 			if (rect == null)
 			{
@@ -1026,11 +1061,12 @@ namespace Microsoft.Xna.Framework.Graphics
 				h = rect.Value.Height;
 			}
 
+			int formatSize = Texture.GetFormatSizeEXT(FNA3D.FNA3D_GetBackbufferSurfaceFormat(GLDevice));
 			int elementSizeInBytes = MarshalHelper.SizeOf<T>();
-			Texture.ValidateGetDataFormat(
-				FNA3D.FNA3D_GetBackbufferSurfaceFormat(GLDevice),
-				elementSizeInBytes
-			);
+			if (formatSize % elementSizeInBytes != 0)
+			{
+				throw new ArgumentException("The type you are using for T in this method is an invalid size for this resource.");
+			}
 
 			GCHandle handle = GCHandle.Alloc(data, GCHandleType.Pinned);
 			FNA3D.FNA3D_ReadBackbuffer(
@@ -1267,6 +1303,10 @@ namespace Microsoft.Xna.Framework.Graphics
 
 		public void SetVertexBuffer(VertexBuffer vertexBuffer, int vertexOffset)
 		{
+			if (IsDisposed)
+			{
+				throw new ObjectDisposedException(GetType().Name);
+			}
 			if (vertexBuffer == null)
 			{
 				if (vertexBufferCount == 0)
@@ -1282,6 +1322,14 @@ namespace Microsoft.Xna.Framework.Graphics
 				return;
 			}
 
+			if (vertexBuffer.buffer == IntPtr.Zero)
+			{
+				throw new ObjectDisposedException(vertexBuffer.GetType().Name);
+			}
+			if (vertexBuffer.GraphicsDevice != this)
+			{
+				throw new InvalidOperationException("Resources can only be used on the GraphicsDevice that they were created on. This resource was not created on this GraphicsDevice.");
+			}
 			if (	!ReferenceEquals(vertexBufferBindings[0].VertexBuffer, vertexBuffer) ||
 				vertexBufferBindings[0].VertexOffset != vertexOffset	)
 			{
@@ -1306,6 +1354,10 @@ namespace Microsoft.Xna.Framework.Graphics
 
 		public void SetVertexBuffers(params VertexBufferBinding[] vertexBuffers)
 		{
+			if (IsDisposed)
+			{
+				throw new ObjectDisposedException(GetType().Name);
+			}
 			if (vertexBuffers == null)
 			{
 				if (vertexBufferCount == 0)
@@ -1335,6 +1387,19 @@ namespace Microsoft.Xna.Framework.Graphics
 			int i = 0;
 			while (i < vertexBuffers.Length)
 			{
+				VertexBuffer vertexBuffer = vertexBuffers[i].VertexBuffer;
+				if (vertexBuffer == null)
+				{
+					throw new ArgumentException("This method does not accept null for this parameter.");
+				}
+				if (vertexBuffer.buffer == IntPtr.Zero)
+				{
+					throw new ObjectDisposedException(vertexBuffer.GetType().Name);
+				}
+				if (vertexBuffer.GraphicsDevice != this)
+				{
+					throw new InvalidOperationException("Resources can only be used on the GraphicsDevice that they were created on. This resource was not created on this GraphicsDevice.");
+				}
 				if (	!ReferenceEquals(vertexBufferBindings[i].VertexBuffer, vertexBuffers[i].VertexBuffer) ||
 					vertexBufferBindings[i].VertexOffset != vertexBuffers[i].VertexOffset ||
 					vertexBufferBindings[i].InstanceFrequency != vertexBuffers[i].InstanceFrequency	)
@@ -1521,6 +1586,42 @@ namespace Microsoft.Xna.Framework.Graphics
 			int indexOffset,
 			int primitiveCount
 		) where T : struct, IVertexType {
+			if (IsDisposed)
+			{
+				throw new ObjectDisposedException(GetType().Name);
+			}
+			if (vertexData == null || vertexData.Length == 0)
+			{
+				throw new ArgumentNullException("vertexData", "This method does not accept null for this parameter.");
+			}
+			if (indexData == null || indexData.Length == 0)
+			{
+				throw new ArgumentNullException("indexData", "This method does not accept null for this parameter.");
+			}
+			if (numVertices <= 0)
+			{
+				throw new ArgumentOutOfRangeException("numVertices", "When drawing indexed primitives, the number of vertices passed in must be greater than zero.");
+			}
+			if (primitiveCount <= 0)
+			{
+				throw new ArgumentOutOfRangeException("primitiveCount", "When drawing, at least one primitive must be drawn.");
+			}
+			if (unchecked((uint) vertexOffset >= (uint) vertexData.Length))
+			{
+				throw new ArgumentOutOfRangeException("vertexOffset", "The offset must be within the valid range for this resource.");
+			}
+			if (unchecked((uint) indexOffset >= (uint) indexData.Length))
+			{
+				throw new ArgumentOutOfRangeException("indexOffset", "The offset must be within the valid range for this resource.");
+			}
+			if (indexOffset + PrimitiveVerts(primitiveType, primitiveCount) > indexData.Length)
+			{
+				throw new ArgumentOutOfRangeException("primitiveCount", "This parameter must be a valid index within the array.");
+			}
+			if (vertexOffset + numVertices > vertexData.Length)
+			{
+				throw new ArgumentOutOfRangeException("vertexData", "This parameter must be a valid index within the array.");
+			}
 			ApplyState();
 
 			// Pin the buffers.
@@ -1567,6 +1668,46 @@ namespace Microsoft.Xna.Framework.Graphics
 			int primitiveCount,
 			VertexDeclaration vertexDeclaration
 		) where T : struct {
+			if (IsDisposed)
+			{
+				throw new ObjectDisposedException(GetType().Name);
+			}
+			if (vertexData == null || vertexData.Length == 0)
+			{
+				throw new ArgumentNullException("vertexData", "This method does not accept null for this parameter.");
+			}
+			if (indexData == null || indexData.Length == 0)
+			{
+				throw new ArgumentNullException("indexData", "This method does not accept null for this parameter.");
+			}
+			if (vertexDeclaration == null)
+			{
+				throw new ArgumentNullException("vertexDeclaration", "This method does not accept null for this parameter.");
+			}
+			if (numVertices <= 0)
+			{
+				throw new ArgumentOutOfRangeException("numVertices", "When drawing indexed primitives, the number of vertices passed in must be greater than zero.");
+			}
+			if (primitiveCount <= 0)
+			{
+				throw new ArgumentOutOfRangeException("primitiveCount", "When drawing, at least one primitive must be drawn.");
+			}
+			if (unchecked((uint) vertexOffset >= (uint) vertexData.Length))
+			{
+				throw new ArgumentOutOfRangeException("vertexOffset", "The offset must be within the valid range for this resource.");
+			}
+			if (unchecked((uint) indexOffset >= (uint) indexData.Length))
+			{
+				throw new ArgumentOutOfRangeException("indexOffset", "The offset must be within the valid range for this resource.");
+			}
+			if (indexOffset + PrimitiveVerts(primitiveType, primitiveCount) > indexData.Length)
+			{
+				throw new ArgumentOutOfRangeException("primitiveCount", "This parameter must be a valid index within the array.");
+			}
+			if (vertexOffset + numVertices > vertexData.Length)
+			{
+				throw new ArgumentOutOfRangeException("vertexData", "This parameter must be a valid index within the array.");
+			}
 			ApplyState();
 
 			// Pin the buffers.
@@ -1612,6 +1753,42 @@ namespace Microsoft.Xna.Framework.Graphics
 			int indexOffset,
 			int primitiveCount
 		) where T : struct, IVertexType {
+			if (IsDisposed)
+			{
+				throw new ObjectDisposedException(GetType().Name);
+			}
+			if (vertexData == null || vertexData.Length == 0)
+			{
+				throw new ArgumentNullException("vertexData", "This method does not accept null for this parameter.");
+			}
+			if (indexData == null || indexData.Length == 0)
+			{
+				throw new ArgumentNullException("indexData", "This method does not accept null for this parameter.");
+			}
+			if (numVertices <= 0)
+			{
+				throw new ArgumentOutOfRangeException("numVertices", "When drawing indexed primitives, the number of vertices passed in must be greater than zero.");
+			}
+			if (primitiveCount <= 0)
+			{
+				throw new ArgumentOutOfRangeException("primitiveCount", "When drawing, at least one primitive must be drawn.");
+			}
+			if (unchecked((uint) vertexOffset >= (uint) vertexData.Length))
+			{
+				throw new ArgumentOutOfRangeException("vertexOffset", "The offset must be within the valid range for this resource.");
+			}
+			if (unchecked((uint) indexOffset >= (uint) indexData.Length))
+			{
+				throw new ArgumentOutOfRangeException("indexOffset", "The offset must be within the valid range for this resource.");
+			}
+			if (indexOffset + PrimitiveVerts(primitiveType, primitiveCount) > indexData.Length)
+			{
+				throw new ArgumentOutOfRangeException("primitiveCount", "This parameter must be a valid index within the array.");
+			}
+			if (vertexOffset + numVertices > vertexData.Length)
+			{
+				throw new ArgumentOutOfRangeException("vertexData", "This parameter must be a valid index within the array.");
+			}
 			ApplyState();
 
 			// Pin the buffers.
@@ -1658,6 +1835,46 @@ namespace Microsoft.Xna.Framework.Graphics
 			int primitiveCount,
 			VertexDeclaration vertexDeclaration
 		) where T : struct {
+			if (IsDisposed)
+			{
+				throw new ObjectDisposedException(GetType().Name);
+			}
+			if (vertexData == null || vertexData.Length == 0)
+			{
+				throw new ArgumentNullException("vertexData", "This method does not accept null for this parameter.");
+			}
+			if (indexData == null || indexData.Length == 0)
+			{
+				throw new ArgumentNullException("indexData", "This method does not accept null for this parameter.");
+			}
+			if (vertexDeclaration == null)
+			{
+				throw new ArgumentNullException("vertexDeclaration", "This method does not accept null for this parameter.");
+			}
+			if (numVertices <= 0)
+			{
+				throw new ArgumentOutOfRangeException("numVertices", "When drawing indexed primitives, the number of vertices passed in must be greater than zero.");
+			}
+			if (primitiveCount <= 0)
+			{
+				throw new ArgumentOutOfRangeException("primitiveCount", "When drawing, at least one primitive must be drawn.");
+			}
+			if (unchecked((uint) vertexOffset >= (uint) vertexData.Length))
+			{
+				throw new ArgumentOutOfRangeException("vertexOffset", "The offset must be within the valid range for this resource.");
+			}
+			if (unchecked((uint) indexOffset >= (uint) indexData.Length))
+			{
+				throw new ArgumentOutOfRangeException("indexOffset", "The offset must be within the valid range for this resource.");
+			}
+			if (indexOffset + PrimitiveVerts(primitiveType, primitiveCount) > indexData.Length)
+			{
+				throw new ArgumentOutOfRangeException("primitiveCount", "This parameter must be a valid index within the array.");
+			}
+			if (vertexOffset + numVertices > vertexData.Length)
+			{
+				throw new ArgumentOutOfRangeException("vertexData", "This parameter must be a valid index within the array.");
+			}
 			ApplyState();
 
 			// Pin the buffers.
@@ -1704,6 +1921,27 @@ namespace Microsoft.Xna.Framework.Graphics
 			int vertexOffset,
 			int primitiveCount
 		) where T : struct, IVertexType {
+			if (IsDisposed)
+			{
+				throw new ObjectDisposedException(GetType().Name);
+			}
+			if (vertexData == null)
+			{
+				throw new ArgumentNullException("vertexData", "This method does not accept null for this parameter.");
+			}
+			if (primitiveCount <= 0)
+			{
+				throw new ArgumentOutOfRangeException("primitiveCount", "When drawing, at least one primitive must be drawn.");
+			}
+			if (unchecked((uint) vertexOffset >= (uint) vertexData.Length))
+			{
+				throw new ArgumentOutOfRangeException("vertexOffset", "The offset must be within the valid range for this resource.");
+			}
+			int primitiveVerts = PrimitiveVerts(primitiveType, primitiveCount);
+			if (primitiveVerts + vertexOffset > vertexData.Length)
+			{
+				throw new ArgumentOutOfRangeException("primitiveCount", "This parameter must be a valid index within the array.");
+			}
 			ApplyState();
 
 			// Pin the buffers.
@@ -1711,7 +1949,7 @@ namespace Microsoft.Xna.Framework.Graphics
 
 			PrepareUserVertexBuffer(
 				vbHandle.AddrOfPinnedObject(),
-				PrimitiveVerts(primitiveType, primitiveCount),
+				primitiveVerts,
 				vertexOffset,
 				VertexDeclarationCache<T>.VertexDeclaration
 			);
@@ -1750,9 +1988,14 @@ namespace Microsoft.Xna.Framework.Graphics
 			{
 				throw new ArgumentOutOfRangeException("primitiveCount", "When drawing, at least one primitive must be drawn.");
 			}
-			if (vertexOffset < 0)
+			if (unchecked((uint) vertexOffset >= (uint) vertexData.Length))
 			{
 				throw new ArgumentOutOfRangeException("vertexOffset", "The offset must be within the valid range for this resource.");
+			}
+			int primitiveVerts = PrimitiveVerts(primitiveType, primitiveCount);
+			if (primitiveVerts + vertexOffset > vertexData.Length)
+			{
+				throw new ArgumentOutOfRangeException("primitiveCount", "This parameter must be a valid index within the array.");
 			}
 			ApplyState();
 
@@ -1761,7 +2004,7 @@ namespace Microsoft.Xna.Framework.Graphics
 
 			PrepareUserVertexBuffer(
 				vbHandle.AddrOfPinnedObject(),
-				PrimitiveVerts(primitiveType, primitiveCount),
+				primitiveVerts,
 				vertexOffset,
 				vertexDeclaration
 			);

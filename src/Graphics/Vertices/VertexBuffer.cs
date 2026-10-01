@@ -86,9 +86,21 @@ namespace Microsoft.Xna.Framework.Graphics
 			BufferUsage bufferUsage,
 			bool dynamic
 		) {
+			if (vertexDeclaration == null)
+			{
+				throw new ArgumentNullException("vertexDeclaration", "This method does not accept null for this parameter.");
+			}
+			if (vertexCount <= 0)
+			{
+				throw new ArgumentOutOfRangeException("vertexCount", "Resource size must be greater than zero.");
+			}
+			if (vertexDeclaration.IsDisposed)
+			{
+				throw new ObjectDisposedException(typeof(VertexDeclaration).Name);
+			}
 			if (graphicsDevice == null)
 			{
-				throw new ArgumentNullException("graphicsDevice");
+				throw new NullReferenceException();
 			}
 
 			GraphicsDevice = graphicsDevice;
@@ -137,7 +149,7 @@ namespace Microsoft.Xna.Framework.Graphics
 				0,
 				data,
 				0,
-				data.Length,
+				data == null ? 0 : data.Length,
 				MarshalHelper.SizeOf<T>()
 			);
 		}
@@ -167,17 +179,11 @@ namespace Microsoft.Xna.Framework.Graphics
 			{
 				throw new ObjectDisposedException(GetType().Name);
 			}
-			if (data == null)
+			if (data == null || data.Length == 0)
 			{
-				throw new ArgumentNullException("data");
+				throw new ArgumentNullException("data", "This method does not accept null for this parameter.");
 			}
-			if (data.Length < (startIndex + elementCount))
-			{
-				throw new ArgumentOutOfRangeException(
-					"elementCount",
-					"This parameter must be a valid index within the array."
-				);
-			}
+			ValidateCopyParameters(data.Length, startIndex, elementCount);
 			if (BufferUsage == BufferUsage.WriteOnly)
 			{
 				throw new NotSupportedException("Calling GetData on a resource that was created with BufferUsage.WriteOnly is not supported.");
@@ -224,7 +230,7 @@ namespace Microsoft.Xna.Framework.Graphics
 				0,
 				data,
 				0,
-				data.Length,
+				data == null ? 0 : data.Length,
 				MarshalHelper.SizeOf<T>()
 			);
 		}
@@ -304,18 +310,11 @@ namespace Microsoft.Xna.Framework.Graphics
 			{
 				throw new ObjectDisposedException(GetType().Name);
 			}
-			if (data == null)
+			if (data == null || data.Length == 0)
 			{
-				throw new ArgumentNullException("data");
+				throw new ArgumentNullException("data", "This method does not accept null for this parameter.");
 			}
-			if ((startIndex + elementCount > data.Length) || elementCount <= 0)
-			{
-				throw new InvalidOperationException(
-					"The array specified in the data parameter" +
-					" is not the correct size for the amount of" +
-					" data requested."
-				);
-			}
+			ValidateCopyParameters(data.Length, startIndex, elementCount);
 			if (	elementCount > 1 &&
 				(elementCount * vertexStride) > (VertexCount * VertexDeclaration.VertexStride)	)
 			{

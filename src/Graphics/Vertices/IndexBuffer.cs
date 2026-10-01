@@ -101,9 +101,13 @@ namespace Microsoft.Xna.Framework.Graphics
 			BufferUsage usage,
 			bool dynamic
 		) {
+			if (indexCount <= 0)
+			{
+				throw new ArgumentOutOfRangeException("indexCount", "Resource size must be greater than zero.");
+			}
 			if (graphicsDevice == null)
 			{
-				throw new ArgumentNullException("graphicsDevice");
+				throw new NullReferenceException();
 			}
 
 			GraphicsDevice = graphicsDevice;
@@ -151,7 +155,7 @@ namespace Microsoft.Xna.Framework.Graphics
 				0,
 				data,
 				0,
-				data.Length
+				data == null ? 0 : data.Length
 			);
 		}
 
@@ -178,14 +182,11 @@ namespace Microsoft.Xna.Framework.Graphics
 			{
 				throw new ObjectDisposedException(GetType().Name);
 			}
-			if (data == null)
+			if (data == null || data.Length == 0)
 			{
-				throw new ArgumentNullException("data");
+				throw new ArgumentNullException("data", "This method does not accept null for this parameter.");
 			}
-			if (data.Length < (startIndex + elementCount))
-			{
-				throw new InvalidOperationException("The array specified in the data parameter is not the correct size for the amount of data requested.");
-			}
+			ValidateCopyParameters(data.Length, startIndex, elementCount);
 			if (BufferUsage == BufferUsage.WriteOnly)
 			{
 				throw new NotSupportedException(
@@ -212,6 +213,8 @@ namespace Microsoft.Xna.Framework.Graphics
 
 		public void SetData<T>(T[] data) where T : struct
 		{
+			ErrorCheck(data, 0, data == null ? 0 : data.Length);
+
 			GCHandle handle = GCHandle.Alloc(data, GCHandleType.Pinned);
 			FNA3D.FNA3D_SetIndexBufferData(
 				GraphicsDevice.GLDevice,
@@ -296,14 +299,11 @@ namespace Microsoft.Xna.Framework.Graphics
 			{
 				throw new ObjectDisposedException(GetType().Name);
 			}
-			if (data == null)
+			if (data == null || data.Length == 0)
 			{
-				throw new ArgumentNullException("data");
+				throw new ArgumentNullException("data", "This method does not accept null for this parameter.");
 			}
-			if (data.Length < (startIndex + elementCount))
-			{
-				throw new InvalidOperationException("The array specified in the data parameter is not the correct size for the amount of data requested.");
-			}
+			ValidateCopyParameters(data.Length, startIndex, elementCount);
 		}
 
 		#endregion
@@ -341,11 +341,7 @@ namespace Microsoft.Xna.Framework.Graphics
 				return IndexElementSize.ThirtyTwoBits;
 			}
 
-			throw new ArgumentOutOfRangeException(
-				"type",
-				"Index buffers can only be created for types" +
-				" that are sixteen or thirty two bits in length"
-			);
+			throw new ArgumentException("IndexBuffers may be created only with types that are 16 bit or 32 bit in size.");
 		}
 
 		#endregion
