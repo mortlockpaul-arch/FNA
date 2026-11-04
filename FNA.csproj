@@ -436,7 +436,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="app.config">
-      <Link>$(TargetFileName).config</Link>
+      <TargetPath>$(TargetFileName).config</TargetPath>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
