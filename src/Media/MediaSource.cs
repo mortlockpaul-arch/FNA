@@ -21,7 +21,12 @@ namespace Microsoft.Xna.Framework.Media
 		#endregion
 
 		#region Public Static Methods
-		public static IList<MediaSource> GetAvailableMediaSources() { throw new NotImplementedException(); }
+		// Desktop compatibility: FNA does not enumerate XNA media sources.
+		// Return an empty collection rather than throwing during game startup.
+		public static IList<MediaSource> GetAvailableMediaSources()
+		{
+			return new List<MediaSource>();
+		}
 		#endregion
 
 		#region Public Methods

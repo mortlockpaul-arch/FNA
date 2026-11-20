@@ -95,6 +95,18 @@ namespace Microsoft.Xna.Framework.Content
 				return reader;
 			}
 
+			if (targetType.FullName != null && targetType.FullName.Contains("AvatarExpression"))
+			{
+				Console.Error.WriteLine("[FNA Avatar] Lookup MISS: " + targetType.AssemblyQualifiedName);
+				foreach (KeyValuePair<Type, ContentTypeReader> entry in contentReaders)
+				{
+					if (entry.Key.FullName != null && entry.Key.FullName.Contains("AvatarExpression"))
+					{
+						Console.Error.WriteLine("[FNA Avatar] Candidate: " + entry.Key.AssemblyQualifiedName +
+							" SameType=" + (entry.Key == targetType));
+					}
+				}
+			}
 			return null;
 		}
 
@@ -196,7 +208,44 @@ namespace Microsoft.Xna.Framework.Content
 						string readerTypeString = originalReaderTypeString;
 						readerTypeString = PrepareType(readerTypeString);
 
-						Type l_readerType = Type.GetType(readerTypeString);
+						if (readerTypeString.Contains("AvatarExpression"))
+{
+    Console.Error.WriteLine("[FNA Avatar] Reader: " + readerTypeString);
+
+    try
+    {
+        string avatarPath = System.IO.Path.Combine(
+    System.AppDomain.CurrentDomain.BaseDirectory,
+    "FNA.AvatarCompat.dll"
+);
+
+Console.Error.WriteLine("[FNA Avatar] Path: " + avatarPath);
+
+Assembly assembly =
+    System.Reflection.Assembly.LoadFrom(avatarPath);
+
+        Console.Error.WriteLine(
+            "[FNA Avatar] Loaded: " + assembly.FullName
+        );
+
+        Type avatarType = assembly.GetType(
+            "Microsoft.Xna.Framework.GamerServices.AvatarExpression",
+            false
+        );
+
+        Console.Error.WriteLine(
+            "[FNA Avatar] Type found: " + (avatarType != null)
+        );
+    }
+    catch (Exception ex)
+    {
+        Console.Error.WriteLine(
+            "[FNA Avatar] Load failed: " + ex
+        );
+    }
+}
+
+Type l_readerType = Type.GetType(readerTypeString);
 						if (!ReferenceEquals(l_readerType, null))
 						{
 							ContentTypeReader typeReader;
@@ -256,6 +305,13 @@ namespace Microsoft.Xna.Framework.Content
 
 					if (!ReferenceEquals(newReaders[i].TargetType, null))
 					{
+						if (newReaders[i].TargetType.FullName != null &&
+							newReaders[i].TargetType.FullName.Contains("AvatarExpression"))
+						{
+							Console.Error.WriteLine("[FNA Avatar] Register: " +
+								newReaders[i].TargetType.AssemblyQualifiedName +
+								" Reader=" + newReaders[i].GetType().AssemblyQualifiedName);
+						}
 						contentReaders.Add(newReaders[i].TargetType, newReaders[i]);
 					}
 
@@ -321,7 +377,18 @@ namespace Microsoft.Xna.Framework.Content
 		/// </returns>
 		private static string PrepareType(string type)
 		{
-			return regex.Replace(type, regexReplacement);
+			string prepared = regex.Replace(type, regexReplacement);
+
+/* Xbox 360 avatar content compatibility.
+ * Redirect legacy avatar types to FNA.AvatarCompat.
+ */
+prepared = Regex.Replace(
+    prepared,
+    @", Microsoft\.Xna\.Framework\.Avatar, Version=[^,\]]+, Culture=[^,\]]+, PublicKeyToken=[^\]]+",
+    ", FNA.NetStub"
+);
+
+return prepared;
 		}
 
 		#endregion

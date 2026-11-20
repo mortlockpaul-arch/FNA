@@ -272,6 +272,11 @@ namespace Microsoft.Xna.Framework.Content
 			ContentTypeReader reader = manager.GetTypeReader(elementType);
 			if (reader == null)
 			{
+				if (elementType.FullName != null && elementType.FullName.Contains("AvatarExpression"))
+				{
+					Console.Error.WriteLine("[FNA Avatar] Member: " + member.DeclaringType.FullName + "." + member.Name);
+					Console.Error.WriteLine("[FNA Avatar] Requested: " + elementType.AssemblyQualifiedName);
+				}
 				throw new ContentLoadException(string.Format(
 					"Content reader could not be found for {0} type.",
 					elementType.FullName

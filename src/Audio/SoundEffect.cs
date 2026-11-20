@@ -133,7 +133,17 @@ namespace Microsoft.Xna.Framework.Audio
 					throw new ArgumentOutOfRangeException("value");
 				}
 				FAudioContext dev = Device();
-				dev.SpeedOfSound = value;
+				if (float.IsNaN(value) ||
+    float.IsInfinity(value) ||
+    value <= 0f)
+{
+    System.Diagnostics.Debug.WriteLine(
+        "[FNA Audio] Invalid SpeedOfSound=" + value + "; using 343.5f");
+
+    value = 343.5f;
+}
+
+dev.SpeedOfSound = value;
 				FAudio.F3DAudioInitialize(
 					dev.DeviceDetails.OutputFormat.dwChannelMask,
 					dev.SpeedOfSound,
